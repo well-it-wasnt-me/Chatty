@@ -1,0 +1,22 @@
+site_name: chatty
+site_description: Five messaging accounts. One terminal. Fewer browser tabs.
+site_url: https://your-org.github.io/chatty/
+repo_url: https://github.com/your-org/chatty
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Contributing: contributing.md
+  - Platforms:
+      - WhatsApp: whatsapp.md
+      - Telegram: telegram.md
+      - Slack: slack.md
+      - SimpleX: simplex.md
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+markdown_extensions:
+  - tables
+  - fenced_code
