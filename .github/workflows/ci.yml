@@ -39,3 +39,114 @@ jobs:
           name: chatty-dist
           path: dist/
           retention-days: 7
+
+  build-linux:
+    name: Build Linux binary (Debian and Arch)
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build JavaScript
+        run: pnpm build
+      - name: Package Linux x64 executable
+        run: npx --yes @yao-pkg/pkg dist/index.js --targets node22-linux-x64 --output dist/chatty-linux-x64
+      - name: Prepare distro-named assets
+        run: |
+          chmod +x dist/chatty-linux-x64
+          cp dist/chatty-linux-x64 dist/chatty-linux-x64-debian
+          cp dist/chatty-linux-x64 dist/chatty-linux-x64-arch
+      - name: Upload Linux binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatty-linux-x64
+          path: |
+            dist/chatty-linux-x64-debian
+            dist/chatty-linux-x64-arch
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS ${{ matrix.arch }} binary
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: node22-macos-x64
+          - arch: arm64
+            target: node22-macos-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build JavaScript
+        run: pnpm build
+      - name: Package macOS executable
+        run: npx --yes @yao-pkg/pkg dist/index.js --targets "${{ matrix.target }}" --output "dist/chatty-macos-${{ matrix.arch }}"
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatty-macos-${{ matrix.arch }}
+          path: dist/chatty-macos-${{ matrix.arch }}
+          retention-days: 7
+
+  publish-binaries:
+    name: Publish binaries
+    needs: [build-linux, build-macos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-binaries
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chatty-{linux,macos}-*
+          path: binaries
+          merge-multiple: true
+      - name: Publish edge release
+        run: |
+          gh release delete edge --yes --cleanup-tag || true
+          gh release create edge binaries/* \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Edge build" \
+            --notes "Latest binaries built from main at $GITHUB_SHA."
+      - name: Attach binaries to version release
+        run: |
+          tags=$(git ls-remote --tags origin 'v*' \
+            | awk -v sha="$GITHUB_SHA" '$1 == sha { sub("refs/tags/", "", $2); sub(/\^\{\}$/, "", $2); print $2 }' \
+            | sort -u)
+          for tag in $tags; do
+            if gh release view "$tag" > /dev/null 2>&1; then
+              gh release upload "$tag" binaries/* --clobber
+            fi
+          done
