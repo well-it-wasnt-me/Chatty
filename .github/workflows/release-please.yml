@@ -22,36 +22,36 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  npm:
-    name: Publish to npm
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Verify package
-        run: pnpm test && pnpm build
-      - name: Publish package
-        run: npm pkg delete private && npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+#  npm:
+#    name: Publish to npm
+#    needs: release-please
+#    if: needs.release-please.outputs.release_created == 'true'
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: read
+#    steps:
+#      - name: Checkout release tag
+#        uses: actions/checkout@v4
+#        with:
+#          ref: ${{ needs.release-please.outputs.tag_name }}
+#      - name: Setup pnpm
+#        uses: pnpm/action-setup@v4
+#        with:
+#          version: 10
+#      - name: Setup Node
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: 22
+#          registry-url: https://registry.npmjs.org
+#          cache: pnpm
+#      - name: Install dependencies
+#        run: pnpm install --frozen-lockfile
+#      - name: Verify package
+#        run: pnpm test && pnpm build
+#      - name: Publish package
+#        run: npm pkg delete private && npm publish --access public
+#        env:
+#          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   build-linux:
     name: Build Linux binary (Debian and Arch)
