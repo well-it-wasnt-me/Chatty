@@ -1,7 +1,7 @@
 {
   "name": "terminal-messenger",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "All your conversations. One terminal. No browser circus.",
   "type": "module",
   "scripts": {
